@@ -969,6 +969,8 @@ class Memory(MemoryBase):
 
 class AsyncMemory(MemoryBase):
     def __init__(self, config: MemoryConfig = MemoryConfig()):
+        logger.info("__init__")
+
         self.config = config
 
         self.embedding_model = EmbedderFactory.create(
