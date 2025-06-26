@@ -53,6 +53,7 @@ class OckamLLM(LLMBase):
         response_format=None,
         tools: Optional[List[Dict]] = None,
         tool_choice: str = "auto",
+        no_cache: Optional[bool] = False,
     ):
         """
         Generate a response based on the given messages using Litellm.
@@ -80,6 +81,8 @@ class OckamLLM(LLMBase):
             "max_tokens": self.config.max_tokens,
             "top_p": self.config.top_p,
         }
+        if no_cache:
+            params["no-cache"] = no_cache
         if response_format:
             params["response_format"] = response_format
         if tools:  # TODO: Remove tools if no issues found with new memory addition logic

@@ -1155,17 +1155,23 @@ class AsyncMemory(MemoryBase):
         else:
             system_prompt, user_prompt = get_fact_retrieval_messages(parsed_messages)
 
-        response = await self.llm.generate_response(
-            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-            response_format={"type": "json_object"},
-        )
-
-        try:
-            response = remove_code_blocks(response)
-            new_retrieved_facts = json.loads(response)["facts"]
-        except Exception as e:
-            logging.error(f"Error in new_retrieved_facts: {e}")
-            new_retrieved_facts = []
+        llm_messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+        retries = 0
+        max_retries = 2
+        new_retrieved_facts = []
+        no_cache = None
+        while retries <= max_retries:
+            try:
+                response = await self.llm.generate_response(
+                    messages=llm_messages, response_format={"type": "json_object"}, no_cache=no_cache
+                )
+                response = remove_code_blocks(response)
+                new_retrieved_facts = json.loads(response)["facts"]
+                break
+            except Exception as e:
+                logging.error(f"Error in new_retrieved_facts: {e}")
+                no_cache = True
+                retries += 1
 
         if not new_retrieved_facts:
             logger.debug("No new facts retrieved from input. Skipping memory update LLM call.")
