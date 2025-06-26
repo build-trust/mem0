@@ -1155,6 +1155,7 @@ class AsyncMemory(MemoryBase):
         else:
             system_prompt, user_prompt = get_fact_retrieval_messages(parsed_messages)
 
+        logger.info(f"User prompt: {user_prompt}")
         response = await self.llm.generate_response(
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
             response_format={"type": "json_object"},
@@ -1166,6 +1167,8 @@ class AsyncMemory(MemoryBase):
         except Exception as e:
             logger.error(f"Error in new_retrieved_facts: {e}")
             new_retrieved_facts = []
+
+        logger.info(f"new_retrieved_facts: {new_retrieved_facts}")
 
         if not new_retrieved_facts:
             logger.debug("No new facts retrieved from input. Skipping memory update LLM call.")
