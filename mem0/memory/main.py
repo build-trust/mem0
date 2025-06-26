@@ -1155,6 +1155,7 @@ class AsyncMemory(MemoryBase):
         else:
             system_prompt, user_prompt = get_fact_retrieval_messages(parsed_messages)
 
+        logger.info(f"User prompt: {user_prompt}")
         response = await self.llm.generate_response(
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
             response_format={"type": "json_object"},
@@ -1163,12 +1164,11 @@ class AsyncMemory(MemoryBase):
         try:
             response = remove_code_blocks(response)
             new_retrieved_facts = json.loads(response)["facts"]
-        except Exception as e:
-            logger.error(f"Error in new_retrieved_facts: {e}")
-            new_retrieved_facts = []
+        except Exception as _e:
+            logger.error(f"Error in new_retrieved_facts: {response}")
+            return []
 
-        if not new_retrieved_facts:
-            logger.debug("No new facts retrieved from input. Skipping memory update LLM call.")
+        logger.info(f"new_retrieved_facts: {new_retrieved_facts}")
 
         retrieved_old_memory = []
         new_message_embeddings = {}
@@ -1201,32 +1201,40 @@ class AsyncMemory(MemoryBase):
         temp_uuid_mapping = {}
         for idx, item in enumerate(retrieved_old_memory):
             temp_uuid_mapping[str(idx)] = item["id"]
-            retrieved_old_memory[idx]["id"] = str(idx)
+            item["id"] = str(idx)
 
-        new_memories_with_actions = {}
-        if new_retrieved_facts:
-            function_calling_prompt = get_update_memory_messages(
-                retrieved_old_memory, new_retrieved_facts, self.config.custom_update_memory_prompt
+        function_calling_prompt = get_update_memory_messages(
+            retrieved_old_memory, new_retrieved_facts, self.config.custom_update_memory_prompt
+        )
+
+        logger.debug(f"memory management prompt: {function_calling_prompt}")
+
+        try:
+            response = await self.llm.generate_response(
+                messages=[{"role": "user", "content": function_calling_prompt}],
+                response_format={"type": "json_object"},
             )
-            try:
-                response = await self.llm.generate_response(
-                    messages=[{"role": "user", "content": function_calling_prompt}],
-                    response_format={"type": "json_object"},
-                )
-            except Exception as e:
-                logger.error(f"Error in new memory actions response: {e}")
-                response = ""
-            try:
-                response = remove_code_blocks(response)
-                new_memories_with_actions = json.loads(response)
-            except Exception as e:
-                logger.error(f"Invalid JSON response: {e}")
-                new_memories_with_actions = {}
+        except Exception as e:
+            logger.error(f"Error in new memory actions response: {e}")
+            response = ""
+
+        logger.debug(f"memory management prompt response: {response}")
+
+        try:
+            response = remove_code_blocks(response)
+            new_memories_with_actions = json.loads(response)
+        except Exception as _e:
+            logger.error(f"Error in new_memories_with_actions: {response}")
+            return []
+
+        if not new_memories_with_actions:
+            logger.error(f"Error in new_memories_with_actions: empty response")
+            return []
 
         returned_memories = []
         try:
             for resp in new_memories_with_actions.get("memory", []):
-                logger.info(resp)
+                logger.info(f"New memory: {resp}")
                 try:
                     action_text = resp.get("text")
                     if not action_text:

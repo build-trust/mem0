@@ -89,6 +89,8 @@ class InMemory(VectorStoreBase):
             output = OutputData(id=id, score=float(distance), payload=payload)
             results.append(output)
 
+        # FIXME: SHOULD WE SET A MINIMUM DISTANCE OUT OF WHICH MEMORIES ARE CONSIDERED UNRELATED?
+
         return sorted(results, key=lambda r: r.score)[:limit]
 
     def delete(self, vector_id):
