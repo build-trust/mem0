@@ -48,7 +48,7 @@ class InMemory(VectorStoreBase):
             payloads (List[Dict], optional): List of payloads corresponding to vectors.
             ids (List[str], optional): List of IDs corresponding to vectors.
         """
-        logger.info(f"Inserting {len(vectors)} vectors into collection {self.collection_name}")
+        logger.debug(f"Inserting {len(vectors)} vectors into collection {self.collection_name}")
 
         collection = self.collections[self.collection_name]
         for id, vector, payload in zip(ids, vectors, payloads):
@@ -67,15 +67,17 @@ class InMemory(VectorStoreBase):
         Returns:
             list: Search results.
         """
+
+        filter_conditions = []
+        filter_params = []
+
+        if filters:
+            for k, v in filters.items():
+                logger.debug(f"Filtering {k} by {v}")
+                filter_conditions.append("payload->>%s = %s")
+                filter_params.extend([k, str(v)])
+
         # FIXME: Filters
-        # filter_conditions = []
-        # filter_params = []
-        #
-        # if filters:
-        #     for k, v in filters.items():
-        #         filter_conditions.append("payload->>%s = %s")
-        #         filter_params.extend([k, str(v)])
-        #
         # filter_clause = "WHERE " + " AND ".join(filter_conditions) if filter_conditions else ""
 
         embedding = np.array(vectors, dtype=np.float32)
